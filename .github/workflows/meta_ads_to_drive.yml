@@ -1,40 +1,39 @@
-name: Googleドライブへのメタ広告（1社専用）
+name: メタ広告を取得しGoogle Driveへ保存
 
 on:
-  workflow_dispatch:
   schedule:
-    - cron: '0 3 * * *'  # JST 12:00 に毎日実行
+    - cron: '0 3 * * *'  # JST 12:00
+  workflow_dispatch:
 
 jobs:
-  meta-to-drive:
+  run-meta:
     runs-on: ubuntu-latest
-
     env:
-      CLIENT: RIAHOUSE  # ← ここの値だけ変えれば他社でも再利用OK
-      RIAHOUSE_META_ACCESS_TOKEN: ${{ secrets.RIAHOUSE_META_ACCESS_TOKEN }}
-      RIAHOUSE_META_AD_ACCOUNT_ID: ${{ secrets.RIAHOUSE_META_AD_ACCOUNT_ID }}
-      RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
-
+      CLIENT: RIAHOUSE  # 固定で1社のみ
     steps:
-      - name: 📦 Checkout
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      - name: 🐍 Set up Python
+      - name: 🐍 Pythonセットアップ
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      - name: 📥 Install dependencies
+      - name: 🔧 ライブラリインストール
         run: |
           pip install requests google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
 
-      - name: 🔐 Decode Google credentials
+      - name: 🔐 Google認証情報のデコード
         run: echo "$GDRIVE_CREDENTIALS_JSON" | base64 --decode > credentials.json
         env:
           GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
 
-      - name: 📝 Fetch Meta Ads data
+      - name: 📝 Meta広告データ取得
         run: python get_meta_ads_data.py
+        env:
+          RIAHOUSE_META_ACCESS_TOKEN: ${{ secrets.RIAHOUSE_META_ACCESS_TOKEN }}
+          RIAHOUSE_META_AD_ACCOUNT_ID: ${{ secrets.RIAHOUSE_META_AD_ACCOUNT_ID }}
 
-      - name: ☁️ Upload CSV to Google Drive
+      - name: ☁️ Google Driveにアップロード
         run: python upload_to_drive.py
+        env:
+          RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
