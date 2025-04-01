@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "run": "python meta_ads_to_csv.py"
+  }
+}
