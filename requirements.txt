@@ -1,1 +1,6 @@
 requests
+# Google Drive API用（追加）
+google-api-python-client
+google-auth
+google-auth-httplib2
+google-auth-oauthlib
