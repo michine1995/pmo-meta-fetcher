@@ -3,9 +3,8 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import os
 
-# 環境変数でDriveフォルダIDを取得
-FOLDER_ID = os.environ["DRIVE_FOLDER_ID"]
 CSV_FILE_PATH = "meta_report.csv"
+FOLDER_ID = "12WQ6lLMOrk7dTbEb"  # ← ここをあなたのフォルダIDに固定済み
 
 def upload_to_drive():
     creds = service_account.Credentials.from_service_account_file(
