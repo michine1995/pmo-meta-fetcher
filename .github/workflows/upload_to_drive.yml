@@ -1,0 +1,37 @@
+name: Upload CSV to Google Drive
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 毎時0分に実行
+  workflow_dispatch:
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Generate dummy CSV (あなたの本番CSV出力に置き換えてOK)
+        run: |
+          echo "date,campaign,cost" > meta_report.csv
+          echo "$(date),TestCampaign,1234" >> meta_report.csv
+
+      - name: Decode credentials.json
+        run: |
+          echo "$GDRIVE_CREDENTIALS_JSON" | base64 --decode > credentials.json
+        env:
+          GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Upload to Google Drive
+        run: python upload_to_drive.py
+        env:
+          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
