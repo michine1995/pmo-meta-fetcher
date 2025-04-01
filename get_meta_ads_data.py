@@ -5,7 +5,7 @@ import os
 
 # 環境変数からアクセストークンとアカウントIDを取得
 ACCESS_TOKEN = os.environ['META_ACCESS_TOKEN']
-AD_ACCOUNT_ID = os.environ['META_AD_ACCOUNT_ID']  # 例: act_2727271437569651
+AD_ACCOUNT_ID = os.environ['META_AD_ACCOUNT_ID']  # 例: act_388170056461500
 API_VERSION = 'v19.0'
 
 # 今日の日付を取得（例: 2025-04-02）
