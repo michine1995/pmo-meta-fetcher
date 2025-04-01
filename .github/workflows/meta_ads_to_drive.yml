@@ -3,14 +3,20 @@ name: Googleドライブへのメタ広告（マルチクライアント）
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 3 * * *'  # JST 12:00（UTC 03:00）
+    - cron: '0 3 * * *'  # JST 12:00 に毎日実行
 
 jobs:
   meta-to-drive:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        client: [CLIENTA, CLIENTB]
+        client: [CLIENTA, CLIENTB]  # 追加したいクライアント名をここに追加
+
+    env:
+      CLIENT: ${{ matrix.client }}
+      META_ACCESS_TOKEN: ${{ secrets[format('{0}_META_ACCESS_TOKEN', matrix.client)] }}
+      META_AD_ACCOUNT_ID: ${{ secrets[format('{0}_META_AD_ACCOUNT_ID', matrix.client)] }}
+      META_FOLDER_ID: ${{ secrets[format('{0}_META_FOLDER_ID', matrix.client)] }}
 
     steps:
       - name: 📦 Checkout
@@ -29,13 +35,6 @@ jobs:
         run: echo "$GDRIVE_CREDENTIALS_JSON" | base64 --decode > credentials.json
         env:
           GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
-
-      - name: 🔧 Set env vars dynamically
-        run: |
-          echo "CLIENT=${{ matrix.client }}" >> $GITHUB_ENV
-          echo "META_ACCESS_TOKEN=${{ secrets[matrix.client + '_META_ACCESS_TOKEN'] }}" >> $GITHUB_ENV
-          echo "META_AD_ACCOUNT_ID=${{ secrets[matrix.client + '_META_AD_ACCOUNT_ID'] }}" >> $GITHUB_ENV
-          echo "META_FOLDER_ID=${{ secrets[matrix.client + '_META_FOLDER_ID'] }}" >> $GITHUB_ENV
 
       - name: 📝 Fetch Meta Ads data
         run: python get_meta_ads_data.py
