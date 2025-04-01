@@ -1,38 +1,78 @@
+import requests
+import csv
+import datetime
 import os
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
-from google.oauth2 import service_account
+import shutil
 
-# 環境変数からCLIENTとFOLDER_IDを取得
-CLIENT = os.environ.get('CLIENT')
-FOLDER_ID = os.environ.get(f'{CLIENT}_META_FOLDER_ID')
+# 固定クライアント名
+CLIENT = "RIAHOUSE"
 
-if not CLIENT:
-    raise Exception("❌ CLIENT 環境変数が未設定です")
-if not FOLDER_ID:
-    raise Exception(f"❌ 環境変数が未設定です: {CLIENT}_META_FOLDER_ID")
+# 環境変数から取得
+ACCESS_TOKEN = os.environ.get(f"{CLIENT}_META_ACCESS_TOKEN")
+AD_ACCOUNT_ID = os.environ.get(f"{CLIENT}_META_AD_ACCOUNT_ID")
 
-# ファイルパスを動的に構築
-CSV_FILE_PATH = os.path.join("meta_csv", f"{CLIENT.lower()}_meta_report.csv")
+if not ACCESS_TOKEN:
+    raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_ACCESS_TOKEN'")
+if not AD_ACCOUNT_ID:
+    raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_AD_ACCOUNT_ID'")
 
-# Google API認証
-creds = service_account.Credentials.from_service_account_file(
-    'credentials.json',
-    scopes=['https://www.googleapis.com/auth/drive.file']
-)
+API_VERSION = "v19.0"
+today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-service = build('drive', 'v3', credentials=creds)
+# CSV出力先
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(SCRIPT_DIR, "meta_csv")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-file_metadata = {
-    'name': f"{CLIENT.lower()}_meta_report.csv",
-    'parents': [FOLDER_ID]
+filename_with_date = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report_{today}.csv")
+filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")
+
+# Meta API呼び出し
+url = f"https://graph.facebook.com/{API_VERSION}/{AD_ACCOUNT_ID}/insights"
+params = {
+    "access_token": ACCESS_TOKEN,
+    "level": "campaign",
+    "fields": "campaign_name,spend,impressions,clicks,cpm,actions",
+    "time_range": f'{{"since":"{today}","until":"{today}"}}'
 }
-media = MediaFileUpload(CSV_FILE_PATH, mimetype='text/csv')
 
-file = service.files().create(
-    body=file_metadata,
-    media_body=media,
-    fields='id'
-).execute()
+response = requests.get(url, params=params)
+data = response.json()
 
-print(f"✅ アップロード完了: {file.get('id')}")
+if "error" in data:
+    print("❌ Meta API error:", data["error"])
+    exit(1)
+
+# CSVに書き出し
+with open(filename_with_date, "w", newline="") as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(["date", "campaign", "cost", "CPM", "CTR", "CPC", "impressions", "link_clicks", "conversions"])
+
+    for entry in data.get("data", []):
+        actions = entry.get("actions", [])
+        conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
+        link_clicks = next((int(a["value"]) for a in actions if a["action_type"] == "link_click"), 0)
+
+        spend = float(entry.get("spend", 0))
+        impressions = int(entry.get("impressions", 0))
+
+        ctr_link = round((link_clicks / impressions * 100), 2) if impressions else 0
+        cpc_link = round((spend / link_clicks), 2) if link_clicks else 0
+
+        writer.writerow([
+            today,
+            entry.get("campaign_name", "N/A"),
+            spend,
+            entry.get("cpm", "0"),
+            ctr_link,
+            cpc_link,
+            impressions,
+            link_clicks,
+            conversions
+        ])
+
+# 固定名CSVコピー（Drive用）
+shutil.copyfile(filename_with_date, filename_fixed)
+
+print(f"✅ CSV生成完了：{filename_with_date}")
+print(f"✅ Driveアップロード用コピー：{filename_fixed}")
