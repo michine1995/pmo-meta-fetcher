@@ -40,9 +40,8 @@ with open(filename, "w", newline='') as csvfile:
     writer.writerow(["date", "campaign", "cost", "impressions", "clicks", "conversions"])
 
     for entry in data.get("data", []):
-        actions = entry.get("actions", [])
-       conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
-
+    actions = entry.get("actions", [])
+    conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
 
         writer.writerow([
                 today,
