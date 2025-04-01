@@ -4,7 +4,7 @@ import datetime
 import os
 
 # クライアント名を環境変数から取得（例: CLIENTA）
-CLIENT = os.environ['CLIENT']  # 必須！GitHub Actions側で設定
+CLIENT = os.environ['CLIENT']  # 必須！GitHub Actions 側で設定
 
 # 環境変数からクライアント別のアクセストークンとアカウントIDを取得
 ACCESS_TOKEN = os.environ[f'{CLIENT}_META_ACCESS_TOKEN']
@@ -14,9 +14,14 @@ API_VERSION = 'v19.0'
 # 今日の日付を取得（例: 2025-04-02）
 today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-# ファイル保存パス：クライアント名ごとにファイル名を変える
+# 出力先ディレクトリを作成（存在しなければ）
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-filename = os.path.join(SCRIPT_DIR, f"{CLIENT.lower()}_meta_report.csv")
+OUTPUT_DIR = os.path.join(SCRIPT_DIR, "meta_csv")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# ファイル名：クライアント名＋日付入り → 後でDriveにアップロードするため、固定名ファイルも1つコピーする
+filename_with_date = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report_{today}.csv")
+filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")  # ← Driveアップロード対象
 
 # Meta広告APIのエンドポイント
 url = f"https://graph.facebook.com/{API_VERSION}/{AD_ACCOUNT_ID}/insights"
@@ -39,7 +44,7 @@ if "error" in data:
     exit(1)
 
 # CSVに書き出し
-with open(filename, "w", newline='') as csvfile:
+with open(filename_with_date, "w", newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(["date", "campaign", "cost", "CPM", "CTR", "CPC", "impressions", "link_clicks", "conversions"])
 
@@ -66,4 +71,9 @@ with open(filename, "w", newline='') as csvfile:
             conversions
         ])
 
-print(f"✅ CSV生成完了：{filename}")
+# 保存した日付付きCSVを固定名でコピー（Driveにアップロードする用）
+import shutil
+shutil.copyfile(filename_with_date, filename_fixed)
+
+print(f"✅ CSV生成完了：{filename_with_date}")
+print(f"✅ Driveアップロード用コピー：{filename_fixed}")
