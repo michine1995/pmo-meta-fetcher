@@ -3,17 +3,20 @@ import csv
 import datetime
 import os
 
-# 環境変数からアクセストークンとアカウントIDを取得
-ACCESS_TOKEN = os.environ['META_ACCESS_TOKEN']
-AD_ACCOUNT_ID = os.environ['META_AD_ACCOUNT_ID']
+# クライアント名を環境変数から取得（例: CLIENTA）
+CLIENT = os.environ['CLIENT']  # 必須！GitHub Actions側で設定
+
+# 環境変数からクライアント別のアクセストークンとアカウントIDを取得
+ACCESS_TOKEN = os.environ[f'{CLIENT}_META_ACCESS_TOKEN']
+AD_ACCOUNT_ID = os.environ[f'{CLIENT}_META_AD_ACCOUNT_ID']
 API_VERSION = 'v19.0'
 
 # 今日の日付を取得（例: 2025-04-02）
 today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-# ファイル保存先のパス
+# ファイル保存パス：クライアント名ごとにファイル名を変える
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-filename = os.path.join(SCRIPT_DIR, "meta_report.csv")
+filename = os.path.join(SCRIPT_DIR, f"{CLIENT.lower()}_meta_report.csv")
 
 # Meta広告APIのエンドポイント
 url = f"https://graph.facebook.com/{API_VERSION}/{AD_ACCOUNT_ID}/insights"
