@@ -1,13 +1,17 @@
-name: Fetch Meta Ads & Upload to Google Drive
+name: Meta Ads to Google Drive (Multi-client)
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 毎時0分に自動実行
+    - cron: '0 1 * * *'  # 毎日1時に実行
   workflow_dispatch:
 
 jobs:
-  fetch-and-upload:
+  run-all:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        client: [CLIENTA, CLIENTB]  # ← クライアント名を増やせばOK
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -22,15 +26,23 @@ jobs:
           pip install requests google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
 
       - name: Decode Google credentials
-        run: echo "$GDRIVE_CREDENTIALS_JSON" | base64 --decode > credentials.json
+        run: echo "${{ secrets.GDRIVE_CREDENTIALS_JSON }}" | base64 --decode > credentials.json
         env:
           GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
 
-      - name: Fetch Meta Ads data and write to CSV
-        run: python get_meta_ads_data.py
-        env:
-          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
-          META_AD_ACCOUNT_ID: ${{ secrets.META_AD_ACCOUNT_ID }}
+      - name: Fetch Ads and Upload to Drive
+        run: |
+          CLIENT=${{ matrix.client }}
+          echo "▶️ Processing client: $CLIENT"
+          META_ACCESS_TOKEN_VAR="${CLIENT}_META_ACCESS_TOKEN"
+          META_AD_ACCOUNT_ID_VAR="${CLIENT}_META_AD_ACCOUNT_ID"
+          META_FOLDER_ID_VAR="${CLIENT}_META_FOLDER_ID"
 
-      - name: Upload CSV to Google Drive
-        run: python upload_to_drive.py
+          python get_meta_ads_data.py \
+            --access_token "${{ secrets[META_ACCESS_TOKEN_VAR] }}" \
+            --account_id "${{ secrets[META_AD_ACCOUNT_ID_VAR] }}" \
+            --client_name "$CLIENT"
+
+          python upload_to_drive.py \
+            --file "meta_report_${CLIENT}.csv" \
+            --folder_id "${{ secrets[META_FOLDER_ID_VAR] }}"
