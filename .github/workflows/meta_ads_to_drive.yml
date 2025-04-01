@@ -34,4 +34,7 @@ jobs:
           GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
 
       - name: 📝 Fetch Meta Ads data
-        run:
+        run: python get_meta_ads_data.py
+
+      - name: ☁️ Upload CSV to Google Drive
+        run: python upload_to_drive.py
