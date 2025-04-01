@@ -3,8 +3,16 @@ from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 import os
 
-CSV_FILE_PATH = "meta_report.csv"
-FOLDER_ID = "12WQ6lLMOrk7dTbEb-gZx8ksK9Bv3HzHN"  # あなたのフォルダID（固定）
+# クライアント名を取得
+CLIENT = os.environ.get('CLIENT')
+if not CLIENT:
+    raise KeyError("❌ CLIENT環境変数が設定されていません")
+
+# 動的なCSVパスとDriveフォルダIDを構築
+CSV_FILE_PATH = f"meta_csv/{CLIENT.lower()}_meta_report.csv"
+FOLDER_ID = os.environ.get(f"{CLIENT}_META_FOLDER_ID")
+if not FOLDER_ID:
+    raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_FOLDER_ID'")
 
 def upload_to_drive():
     creds = service_account.Credentials.from_service_account_file(
@@ -13,16 +21,15 @@ def upload_to_drive():
     )
     service = build("drive", "v3", credentials=creds)
 
-    # アップロードするCSVファイルの内容を準備
+    # アップロードするCSVファイル
     media = MediaFileUpload(CSV_FILE_PATH, mimetype="text/csv")
 
-    # フォルダ内の同名ファイル（meta_report.csv）を検索
-    query = f"name = '{CSV_FILE_PATH}' and '{FOLDER_ID}' in parents and trashed = false"
+    # 同名ファイルがすでに存在していれば上書き
+    query = f"name = '{os.path.basename(CSV_FILE_PATH)}' and '{FOLDER_ID}' in parents and trashed = false"
     results = service.files().list(q=query, spaces='drive', fields="files(id)").execute()
     items = results.get('files', [])
 
     if items:
-        # ファイルが存在 → 上書き更新
         file_id = items[0]['id']
         updated_file = service.files().update(
             fileId=file_id,
@@ -30,17 +37,9 @@ def upload_to_drive():
         ).execute()
         print(f"✅ Updated existing file: {file_id}")
     else:
-        # ファイルが存在しない → 新規作成
         file_metadata = {
-            "name": CSV_FILE_PATH,
+            "name": os.path.basename(CSV_FILE_PATH),
             "parents": [FOLDER_ID]
         }
         created_file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id"
-        ).execute()
-        print(f"✅ Uploaded new file: {created_file.get('id')}")
-
-if __name__ == "__main__":
-    upload_to_drive()
+            body=file
