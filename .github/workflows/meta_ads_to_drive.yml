@@ -10,13 +10,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        client: [CLIENTA, CLIENTB]  # 追加したいクライアント名をここに追加
+        client: [RIAHOUSE, RIAJOB]  # 👈 クライアント名をSecretsと揃える
 
     env:
-      CLIENT: ${{ matrix.client }}  # ← これが必須！
-      META_ACCESS_TOKEN: ${{ secrets[format('{0}_META_ACCESS_TOKEN', matrix.client)] }}
-      META_AD_ACCOUNT_ID: ${{ secrets[format('{0}_META_AD_ACCOUNT_ID', matrix.client)] }}
-      META_FOLDER_ID: ${{ secrets[format('{0}_META_FOLDER_ID', matrix.client)] }}
+      CLIENT: ${{ matrix.client }}  # 👈 Pythonへ渡すためのキー環境変数だけセット
 
     steps:
       - name: 📦 Checkout
@@ -37,7 +34,4 @@ jobs:
           GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
 
       - name: 📝 Fetch Meta Ads data
-        run: python get_meta_ads_data.py
-
-      - name: ☁️ Upload CSV to Google Drive
-        run: python upload_to_drive.py
+        run:
