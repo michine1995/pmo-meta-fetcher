@@ -4,29 +4,31 @@ import datetime
 import os
 import shutil
 
-# クライアント名（例: CLIENTA, CLIENTB）
-CLIENT = os.getenv('CLIENT')
+# クライアント名を取得（GitHub Actions で指定する）
+CLIENT = os.environ.get('CLIENT')
 if not CLIENT:
-    raise EnvironmentError("❌ CLIENT 環境変数が設定されていません")
+    raise KeyError("❌ CLIENT環境変数が設定されていません")
 
-# クライアント固有の変数を取得
-try:
-    ACCESS_TOKEN = os.environ[f'{CLIENT}_META_ACCESS_TOKEN']
-    AD_ACCOUNT_ID = os.environ[f'{CLIENT}_META_AD_ACCOUNT_ID']
-except KeyError as e:
-    raise KeyError(f"❌ 環境変数が不足しています: {e}")
+# 必要な環境変数を安全に取得（なければエラー）
+ACCESS_TOKEN = os.environ.get(f'{CLIENT}_META_ACCESS_TOKEN')
+AD_ACCOUNT_ID = os.environ.get(f'{CLIENT}_META_AD_ACCOUNT_ID')
+
+if not ACCESS_TOKEN:
+    raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_ACCESS_TOKEN'")
+if not AD_ACCOUNT_ID:
+    raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_AD_ACCOUNT_ID'")
 
 API_VERSION = 'v19.0'
 today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-# CSV保存先設定
+# CSV出力パス設定
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "meta_csv")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 filename_with_date = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report_{today}.csv")
-filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")
+filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")  # Driveアップロード対象
 
-# Meta APIリクエスト
+# Meta広告API呼び出し
 url = f"https://graph.facebook.com/{API_VERSION}/{AD_ACCOUNT_ID}/insights"
 params = {
     'access_token': ACCESS_TOKEN,
@@ -38,11 +40,12 @@ params = {
 response = requests.get(url, params=params)
 data = response.json()
 
+# エラーチェック
 if "error" in data:
     print("❌ Meta API error:", data["error"])
     exit(1)
 
-# CSV書き出し
+# CSVに書き出し
 with open(filename_with_date, "w", newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(["date", "campaign", "cost", "CPM", "CTR", "CPC", "impressions", "link_clicks", "conversions"])
@@ -70,7 +73,8 @@ with open(filename_with_date, "w", newline='') as csvfile:
             conversions
         ])
 
-# 固定名コピー
+# Drive用ファイルをコピー
 shutil.copyfile(filename_with_date, filename_fixed)
+
 print(f"✅ CSV生成完了：{filename_with_date}")
 print(f"✅ Driveアップロード用コピー：{filename_fixed}")
