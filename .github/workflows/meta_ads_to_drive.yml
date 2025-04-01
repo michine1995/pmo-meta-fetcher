@@ -1,48 +1,41 @@
-name: Meta Ads to Google Drive (Multi-client)
+name: Googleドライブへのメタ広告（マルチクライアント）
 
 on:
-  schedule:
-    - cron: '0 1 * * *'  # 毎日1時に実行
   workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *' # JST 12:00（UTC 03:00）
 
 jobs:
-  run-all:
+  meta-to-drive:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        client: [CLIENTA, CLIENTB]  # ← クライアント名を増やせばOK
+        client: [CLIENTA, CLIENTB]  # ここにクライアント名を追加
+    env:
+      META_ACCESS_TOKEN: ${{ secrets[matrix.client + '_META_ACCESS_TOKEN'] }}
+      META_AD_ACCOUNT_ID: ${{ secrets[matrix.client + '_META_AD_ACCOUNT_ID'] }}
+      META_FOLDER_ID: ${{ secrets[matrix.client + '_META_FOLDER_ID'] }}
 
     steps:
-      - name: Checkout repository
+      - name: 📦 Checkout
         uses: actions/checkout@v3
 
-      - name: Set up Python
+      - name: 🐍 Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      - name: Install dependencies
+      - name: 📥 Install dependencies
         run: |
           pip install requests google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
 
-      - name: Decode Google credentials
-        run: echo "${{ secrets.GDRIVE_CREDENTIALS_JSON }}" | base64 --decode > credentials.json
+      - name: 🔐 Decode Google credentials
+        run: echo "$GDRIVE_CREDENTIALS_JSON" | base64 --decode > credentials.json
         env:
           GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
 
-      - name: Fetch Ads and Upload to Drive
-        run: |
-          CLIENT=${{ matrix.client }}
-          echo "▶️ Processing client: $CLIENT"
-          META_ACCESS_TOKEN_VAR="${CLIENT}_META_ACCESS_TOKEN"
-          META_AD_ACCOUNT_ID_VAR="${CLIENT}_META_AD_ACCOUNT_ID"
-          META_FOLDER_ID_VAR="${CLIENT}_META_FOLDER_ID"
+      - name: 📝 Fetch Meta Ads data
+        run: python get_meta_ads_data.py
 
-          python get_meta_ads_data.py \
-            --access_token "${{ secrets[META_ACCESS_TOKEN_VAR] }}" \
-            --account_id "${{ secrets[META_AD_ACCOUNT_ID_VAR] }}" \
-            --client_name "$CLIENT"
-
-          python upload_to_drive.py \
-            --file "meta_report_${CLIENT}.csv" \
-            --folder_id "${{ secrets[META_FOLDER_ID_VAR] }}"
+      - name: ☁️ Upload CSV to Google Drive
+        run: python upload_to_drive.py
