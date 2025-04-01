@@ -3,50 +3,56 @@ import csv
 import datetime
 import os
 import shutil
+import sys
 
-# クライアント名を取得（GitHub Actions で指定する）
-CLIENT = os.environ.get('CLIENT')
+# ✅ クライアント名の取得とエラーハンドリング
+CLIENT = os.environ.get("CLIENT")
 if not CLIENT:
-    raise KeyError("❌ CLIENT環境変数が設定されていません")
+    print("❌ 環境変数 'CLIENT' が設定されていません", file=sys.stderr)
+    exit(1)
 
-# 必要な環境変数を安全に取得（なければエラー）
-ACCESS_TOKEN = os.environ.get(f'{CLIENT}_META_ACCESS_TOKEN')
-AD_ACCOUNT_ID = os.environ.get(f'{CLIENT}_META_AD_ACCOUNT_ID')
+# ✅ クライアントごとの環境変数を取得
+ACCESS_TOKEN = os.environ.get(f"{CLIENT}_META_ACCESS_TOKEN")
+AD_ACCOUNT_ID = os.environ.get(f"{CLIENT}_META_AD_ACCOUNT_ID")
 
 if not ACCESS_TOKEN:
-    raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_ACCESS_TOKEN'")
+    print(f"❌ 環境変数 '{CLIENT}_META_ACCESS_TOKEN' が見つかりません", file=sys.stderr)
+    exit(1)
 if not AD_ACCOUNT_ID:
-    raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_AD_ACCOUNT_ID'")
+    print(f"❌ 環境変数 '{CLIENT}_META_AD_ACCOUNT_ID' が見つかりません", file=sys.stderr)
+    exit(1)
 
-API_VERSION = 'v19.0'
+# ✅ 基本設定
+API_VERSION = "v19.0"
 today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
-# CSV出力パス設定
+# ✅ 出力パス
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "meta_csv")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
-filename_with_date = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report_{today}.csv")
-filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")  # Driveアップロード対象
 
-# Meta広告API呼び出し
+filename_with_date = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report_{today}.csv")
+filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")  # Driveアップロード用
+
+# ✅ Meta広告API呼び出し
 url = f"https://graph.facebook.com/{API_VERSION}/{AD_ACCOUNT_ID}/insights"
 params = {
-    'access_token': ACCESS_TOKEN,
-    'level': 'campaign',
-    'fields': 'campaign_name,spend,impressions,clicks,cpm,actions',
-    'time_range': f'{{"since":"{today}","until":"{today}"}}'
+    "access_token": ACCESS_TOKEN,
+    "level": "campaign",
+    "fields": "campaign_name,spend,impressions,clicks,cpm,actions",
+    "time_range": f'{{"since":"{today}","until":"{today}"}}'
 }
 
 response = requests.get(url, params=params)
 data = response.json()
 
-# エラーチェック
+# ✅ APIエラーチェック
 if "error" in data:
-    print("❌ Meta API error:", data["error"])
+    print("❌ Meta API error:", data["error"], file=sys.stderr)
     exit(1)
 
-# CSVに書き出し
-with open(filename_with_date, "w", newline='') as csvfile:
+# ✅ CSV出力
+with open(filename_with_date, "w", newline="", encoding="utf-8") as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(["date", "campaign", "cost", "CPM", "CTR", "CPC", "impressions", "link_clicks", "conversions"])
 
@@ -73,8 +79,8 @@ with open(filename_with_date, "w", newline='') as csvfile:
             conversions
         ])
 
-# Drive用ファイルをコピー
+# ✅ 固定ファイル名へコピー（Drive用）
 shutil.copyfile(filename_with_date, filename_fixed)
 
 print(f"✅ CSV生成完了：{filename_with_date}")
-print(f"✅ Driveアップロード用コピー：{filename_fixed}")
+print(f"☁️ Driveアップロード用にコピー：{filename_fixed}")
