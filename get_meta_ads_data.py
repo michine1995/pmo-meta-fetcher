@@ -18,7 +18,7 @@ url = f"https://graph.facebook.com/{API_VERSION}/{AD_ACCOUNT_ID}/insights"
 params = {
     'access_token': ACCESS_TOKEN,
     'level': 'campaign',
-    'fields': 'campaign_name,spend,impressions,clicks,actions',
+    'fields': 'campaign_name,spend,impressions,clicks,cpm,ctr,cpc,link_clicks,actions',
     'time_range': f'{{"since":"{today}","until":"{today}"}}'
 }
 
@@ -41,15 +41,19 @@ with open(filename, "w", newline='') as csvfile:
 
     for entry in data.get("data", []):
         actions = entry.get("actions", [])
-        conversions = next((a["value"] for a in actions if a["action_type"] == "offsite_conversion"), 0)
+       conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
+
 
         writer.writerow([
-            today,
-            entry.get("campaign_name", "N/A"),
-            entry.get("spend", "0"),
-            entry.get("impressions", "0"),
-            entry.get("clicks", "0"),
-            conversions
+                today,
+    entry.get("campaign_name", "N/A"),
+    entry.get("spend", "0"),
+    entry.get("cpm", "0"),
+    entry.get("ctr", "0"),
+    entry.get("cpc", "0"),
+    entry.get("impressions", "0"),
+    entry.get("link_clicks", "0"),
+    conversions
         ])
 
 print(f"✅ CSV生成完了：{filename}")
