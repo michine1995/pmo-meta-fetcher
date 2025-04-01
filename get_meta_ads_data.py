@@ -40,26 +40,26 @@ with open(filename, "w", newline='') as csvfile:
     writer.writerow(["date", "campaign", "cost", "CPM", "CTR", "CPC", "impressions", "link_clicks", "conversions"])
 
     for entry in data.get("data", []):
-    actions = entry.get("actions", [])
-    conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
-    link_clicks = next((int(a["value"]) for a in actions if a["action_type"] == "link_click"), 0)
+        actions = entry.get("actions", [])
+        conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
+        link_clicks = next((int(a["value"]) for a in actions if a["action_type"] == "link_click"), 0)
 
-    spend = float(entry.get("spend", 0))
-    impressions = int(entry.get("impressions", 0))
+        spend = float(entry.get("spend", 0))
+        impressions = int(entry.get("impressions", 0))
 
-    ctr_link = round((link_clicks / impressions * 100), 2) if impressions else 0
-    cpc_link = round((spend / link_clicks), 2) if link_clicks else 0
+        ctr_link = round((link_clicks / impressions * 100), 2) if impressions else 0
+        cpc_link = round((spend / link_clicks), 2) if link_clicks else 0
 
-    writer.writerow([
-        today,
-        entry.get("campaign_name", "N/A"),
-        spend,
-        entry.get("cpm", "0"),
-        ctr_link,
-        cpc_link,
-        impressions,
-        link_clicks,
-        conversions
-    ])
+        writer.writerow([
+            today,
+            entry.get("campaign_name", "N/A"),
+            spend,
+            entry.get("cpm", "0"),
+            ctr_link,
+            cpc_link,
+            impressions,
+            link_clicks,
+            conversions
+        ])
 
 print(f"✅ CSV生成完了：{filename}")
