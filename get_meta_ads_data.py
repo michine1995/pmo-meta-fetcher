@@ -19,7 +19,7 @@ params = {
     'access_token': ACCESS_TOKEN,
     'level': 'campaign',
     'fields': 'campaign_name,spend,impressions,clicks,actions',
-    'time_range': {'since': today, 'until': today}
+    'time_range': f'{{"since":"{today}","until":"{today}"}}'
 }
 
 # API呼び出し
