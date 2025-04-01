@@ -37,23 +37,23 @@ filename = "meta_report.csv"
 # CSVに書き出し
 with open(filename, "w", newline='') as csvfile:
     writer = csv.writer(csvfile)
-    writer.writerow(["date", "campaign", "cost", "impressions", "clicks", "conversions"])
+    writer.writerow(["date", "campaign", "cost", "CPM", "CTR", "CPC", "impressions", "link_clicks", "conversions"])
 
-for entry in data.get("data", []):
-    actions = entry.get("actions", [])
-    conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
-    link_clicks = next((a["value"] for a in actions if a["action_type"] == "link_click"), 0)
+    for entry in data.get("data", []):
+        actions = entry.get("actions", [])
+        conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
+        link_clicks = next((int(a["value"]) for a in actions if a["action_type"] == "link_click"), 0)
 
-    writer.writerow([
-        today,
-        entry.get("campaign_name", "N/A"),
-        entry.get("spend", "0"),
-        entry.get("cpm", "0"),
-        entry.get("ctr", "0"),
-        entry.get("cpc", "0"),
-        entry.get("impressions", "0"),
-        link_clicks,
-        conversions
-    ])
+        writer.writerow([
+            today,
+            entry.get("campaign_name", "N/A"),
+            entry.get("spend", "0"),
+            entry.get("cpm", "0"),
+            entry.get("ctr", "0"),
+            entry.get("cpc", "0"),
+            entry.get("impressions", "0"),
+            link_clicks,
+            conversions
+        ])
 
 print(f"✅ CSV生成完了：{filename}")
