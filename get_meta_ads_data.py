@@ -9,7 +9,7 @@ AD_ACCOUNT_ID = os.environ['META_AD_ACCOUNT_ID']  # 例: act_388170056461500
 API_VERSION = 'v19.0'
 
 # 今日の日付を取得（例: 2025-04-02）
-today = datetime.date.today().strftime("%Y-%m-%d")
+today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
 
 # Meta広告APIのエンドポイント
 url = f"https://graph.facebook.com/{API_VERSION}/{AD_ACCOUNT_ID}/insights"
