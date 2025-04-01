@@ -1,4 +1,4 @@
-name: Googleドライブへのメタ広告（マルチクライアント）
+name: Googleドライブへのメタ広告（1社専用）
 
 on:
   workflow_dispatch:
@@ -8,12 +8,12 @@ on:
 jobs:
   meta-to-drive:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        client: [RIAHOUSE, RIAJOB]  # 👈 クライアント名をSecretsと揃える
 
     env:
-      CLIENT: ${{ matrix.client }}  # 👈 Pythonへ渡すためのキー環境変数だけセット
+      CLIENT: RIAHOUSE  # ← ここの値だけ変えれば他社でも再利用OK
+      RIAHOUSE_META_ACCESS_TOKEN: ${{ secrets.RIAHOUSE_META_ACCESS_TOKEN }}
+      RIAHOUSE_META_AD_ACCOUNT_ID: ${{ secrets.RIAHOUSE_META_AD_ACCOUNT_ID }}
+      RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
 
     steps:
       - name: 📦 Checkout
