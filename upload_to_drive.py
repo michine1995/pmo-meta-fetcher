@@ -4,7 +4,7 @@ from googleapiclient.http import MediaFileUpload
 import os
 
 CSV_FILE_PATH = "meta_report.csv"
-FOLDER_ID = "12WQ6lLMOrk7dTbEb"  # ← ここをあなたのフォルダIDに固定済み
+FOLDER_ID = "12WQ6lLMOrk7dTbEb-gZx8ksK9Bv3HzHN"  # ← ここをあなたのフォルダIDに固定済み
 
 def upload_to_drive():
     creds = service_account.Credentials.from_service_account_file(
