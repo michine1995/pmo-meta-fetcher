@@ -5,6 +5,9 @@ on:
     - cron: '0 * * * *'  # 毎時実行
   workflow_dispatch:  # 手動実行も可能
 
+permissions:
+  contents: write
+
 jobs:
   run-script:
     runs-on: ubuntu-latest
