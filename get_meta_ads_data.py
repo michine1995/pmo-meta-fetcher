@@ -39,20 +39,20 @@ with open(filename, "w", newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(["date", "campaign", "cost", "impressions", "clicks", "conversions"])
 
-    for entry in data.get("data", []):
+for entry in data.get("data", []):
     actions = entry.get("actions", [])
     conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
 
-        writer.writerow([
-                today,
-    entry.get("campaign_name", "N/A"),
-    entry.get("spend", "0"),
-    entry.get("cpm", "0"),
-    entry.get("ctr", "0"),
-    entry.get("cpc", "0"),
-    entry.get("impressions", "0"),
-    entry.get("link_clicks", "0"),
-    conversions
-        ])
+    writer.writerow([
+        today,
+        entry.get("campaign_name", "N/A"),
+        entry.get("spend", "0"),
+        entry.get("cpm", "0"),
+        entry.get("ctr", "0"),
+        entry.get("cpc", "0"),
+        entry.get("impressions", "0"),
+        entry.get("link_clicks", "0"),
+        conversions
+    ])
 
 print(f"✅ CSV生成完了：{filename}")
