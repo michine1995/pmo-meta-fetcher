@@ -2,13 +2,14 @@ import requests
 import csv
 import datetime
 import os
+import shutil
 
 # クライアント名を環境変数から取得（例: CLIENTA）
 CLIENT = os.environ['CLIENT']  # 必須！GitHub Actions 側で設定
 
-# 環境変数からクライアント別のアクセストークンとアカウントIDを取得
-ACCESS_TOKEN = os.environ[f'{CLIENT}_META_ACCESS_TOKEN']
-AD_ACCOUNT_ID = os.environ[f'{CLIENT}_META_AD_ACCOUNT_ID']
+# 環境変数からアクセストークンとアカウントIDを取得（直接変数名で読む）
+ACCESS_TOKEN = os.environ['META_ACCESS_TOKEN']
+AD_ACCOUNT_ID = os.environ['META_AD_ACCOUNT_ID']
 API_VERSION = 'v19.0'
 
 # 今日の日付を取得（例: 2025-04-02）
@@ -19,9 +20,9 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(SCRIPT_DIR, "meta_csv")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# ファイル名：クライアント名＋日付入り → 後でDriveにアップロードするため、固定名ファイルも1つコピーする
+# ファイル名：クライアント名＋日付入り
 filename_with_date = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report_{today}.csv")
-filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")  # ← Driveアップロード対象
+filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")  # Driveアップロード対象
 
 # Meta広告APIのエンドポイント
 url = f"https://graph.facebook.com/{API_VERSION}/{AD_ACCOUNT_ID}/insights"
@@ -71,8 +72,7 @@ with open(filename_with_date, "w", newline='') as csvfile:
             conversions
         ])
 
-# 保存した日付付きCSVを固定名でコピー（Driveにアップロードする用）
-import shutil
+# 固定ファイル名で保存（Driveアップロード用）
 shutil.copyfile(filename_with_date, filename_fixed)
 
 print(f"✅ CSV生成完了：{filename_with_date}")
