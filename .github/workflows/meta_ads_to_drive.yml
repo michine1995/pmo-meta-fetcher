@@ -12,6 +12,7 @@ jobs:
       matrix:
         client: [CLIENTA, CLIENTB]  # ここにクライアント名を追加
     env:
+      CLIENT: ${{ matrix.client }}
       META_ACCESS_TOKEN: ${{ secrets[format('{0}_META_ACCESS_TOKEN', matrix.client)] }}
       META_AD_ACCOUNT_ID: ${{ secrets[format('{0}_META_AD_ACCOUNT_ID', matrix.client)] }}
       META_FOLDER_ID: ${{ secrets[format('{0}_META_FOLDER_ID', matrix.client)] }}
