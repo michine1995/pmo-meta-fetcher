@@ -12,7 +12,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Generate dummy CSV (あなたの本番CSV出力に置き換えてOK)
+      - name: Generate dummy CSV
         run: |
           echo "date,campaign,cost" > meta_report.csv
           echo "$(date),TestCampaign,1234" >> meta_report.csv
@@ -33,5 +33,3 @@ jobs:
 
       - name: Upload to Google Drive
         run: python upload_to_drive.py
-        env:
-          DRIVE_FOLDER_ID: ${{ secrets.DRIVE_FOLDER_ID }}
