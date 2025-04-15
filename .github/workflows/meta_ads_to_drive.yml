@@ -37,3 +37,9 @@ jobs:
         run: python upload_to_drive.py
         env:
           RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
+
+      - name: ☁️ Google Driveに日次バックアップとして保存
+        run: python upload_daily_backup.py
+        env:
+          RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
+
