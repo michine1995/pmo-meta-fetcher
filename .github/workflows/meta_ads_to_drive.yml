@@ -38,8 +38,8 @@ jobs:
         env:
           RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
 
-      - name: ☁️ Google Driveに日次バックアップとして保存
+      - name: ☁️ Google Driveに毎日バックアップとして保存
         run: python upload_daily_backup.py
         env:
-          RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
-
+        RIAHOUSE_META_ACCESS_TOKEN: ${{ secrets.RIAHOUSE_META_ACCESS_TOKEN }}
+        RIAHOUSE_META_AD_ACCOUNT_ID: ${{ secrets.RIAHOUSE_META_AD_ACCOUNT_ID }}
