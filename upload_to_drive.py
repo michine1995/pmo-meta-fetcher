@@ -3,9 +3,6 @@ import csv
 import datetime
 import os
 import shutil
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
 
 # 固定クライアント名
 CLIENT = "RIAHOUSE"
@@ -13,17 +10,14 @@ CLIENT = "RIAHOUSE"
 # 環境変数から取得
 ACCESS_TOKEN = os.environ.get(f"{CLIENT}_META_ACCESS_TOKEN")
 AD_ACCOUNT_ID = os.environ.get(f"{CLIENT}_META_AD_ACCOUNT_ID")
-FOLDER_ID = os.environ.get(f"{CLIENT}_META_FOLDER_ID")
 
 if not ACCESS_TOKEN:
     raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_ACCESS_TOKEN'")
 if not AD_ACCOUNT_ID:
     raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_AD_ACCOUNT_ID'")
-if not FOLDER_ID:
-    raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT}_META_FOLDER_ID'")
 
 API_VERSION = "v19.0"
-# 取得対象は前日の日付
+# 現在のUTC時刻を取得し、1日前の日付を生成（前日レポート用）
 yesterday = (datetime.datetime.utcnow() - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
 
 # CSV出力先
@@ -78,36 +72,7 @@ with open(filename_with_date, "w", newline="") as csvfile:
             conversions
         ])
 
-# 固定名CSVコピー（リアルタイム用）
+# 固定名CSVコピー（Drive用）
 shutil.copyfile(filename_with_date, filename_fixed)
-
 print(f"✅ CSV生成完了：{filename_with_date}")
 print(f"✅ Driveアップロード用コピー：{filename_fixed}")
-
-# Google Driveにアップロード
-creds = service_account.Credentials.from_service_account_file(
-    "credentials.json",
-    scopes=["https://www.googleapis.com/auth/drive"]
-)
-service = build("drive", "v3", credentials=creds)
-media = MediaFileUpload(filename_with_date, mimetype="text/csv")
-
-query = f"name = '{os.path.basename(filename_with_date)}' and '{FOLDER_ID}' in parents and trashed = false"
-results = service.files().list(q=query, spaces="drive", fields="files(id)").execute()
-items = results.get("files", [])
-
-if items:
-    file_id = items[0]["id"]
-    service.files().update(fileId=file_id, media_body=media).execute()
-    print(f"✅ Updated existing file on Drive: {file_id}")
-else:
-    file_metadata = {
-        "name": os.path.basename(filename_with_date),
-        "parents": [FOLDER_ID]
-    }
-    created_file = service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields="id"
-    ).execute()
-    print(f"✅ Uploaded new file to Drive: {created_file.get('id')}")
