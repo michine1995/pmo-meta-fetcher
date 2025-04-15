@@ -40,3 +40,8 @@ jobs:
         git add *.csv || true
         git commit -m "Add generated CSV from Meta Ads API" || echo "No changes to commit"
         git push
+　　- name: ☁️ Google Driveに毎日バックアップとして保存
+       run: python upload_daily_backup.py
+       env:
+       RIAHOUSE_META_ACCESS_TOKEN: ${{ secrets.RIAHOUSE_META_ACCESS_TOKEN }}
+       RIAHOUSE_META_AD_ACCOUNT_ID: ${{ secrets.RIAHOUSE_META_AD_ACCOUNT_ID }}
