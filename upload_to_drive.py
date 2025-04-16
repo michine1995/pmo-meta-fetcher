@@ -5,8 +5,8 @@ import os
 import datetime
 
 CLIENT = "riahouse"
-today = datetime.datetime.utcnow().strftime("%Y-%m-%d")
-CSV_FILE_PATH = f"meta_csv/{CLIENT}_meta_report_{today}.csv"
+yesterday = datetime.date.today() - datetime.timedelta(days=1)
+CSV_FILE_PATH = f"meta_csv/{CLIENT}_meta_report_{yesterday.isoformat()}.csv"
 FOLDER_ID = os.environ.get(f"{CLIENT.upper()}_META_FOLDER_ID")
 
 if not FOLDER_ID:
@@ -18,18 +18,28 @@ def upload_to_drive():
         scopes=["https://www.googleapis.com/auth/drive"]
     )
     service = build("drive", "v3", credentials=creds)
+
     media = MediaFileUpload(CSV_FILE_PATH, mimetype="text/csv")
 
-    file_metadata = {
-        "name": os.path.basename(CSV_FILE_PATH),
-        "parents": [FOLDER_ID]
-    }
-    created_file = service.files().create(
-        body=file_metadata,
-        media_body=media,
-        fields="id"
-    ).execute()
-    print(f"✅ Uploaded new daily backup: {created_file.get('id')}")
+    query = f"name = '{os.path.basename(CSV_FILE_PATH)}' and '{FOLDER_ID}' in parents and trashed = false"
+    results = service.files().list(q=query, spaces="drive", fields="files(id)").execute()
+    items = results.get("files", [])
+
+    if items:
+        file_id = items[0]["id"]
+        service.files().update(fileId=file_id, media_body=media).execute()
+        print(f"✅ Updated existing file: {file_id}")
+    else:
+        file_metadata = {
+            "name": os.path.basename(CSV_FILE_PATH),
+            "parents": [FOLDER_ID]
+        }
+        created_file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields="id"
+        ).execute()
+        print(f"✅ Uploaded new file: {created_file.get('id')}")
 
 if __name__ == "__main__":
     upload_to_drive()
