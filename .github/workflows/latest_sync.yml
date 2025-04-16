@@ -1,0 +1,36 @@
+name: Meta広告最新CSVのリアルタイム更新
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # 毎時0分に実行
+  workflow_dispatch:
+
+jobs:
+  update-latest:
+    runs-on: ubuntu-latest
+    env:
+      CLIENT: RIAHOUSE
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Pythonセットアップ
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: ライブラリインストール
+        run: |
+          pip install requests google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
+
+      - name: Google認証情報デコード
+        run: echo "$GDRIVE_CREDENTIALS_JSON" | base64 --decode > credentials.json
+        env:
+          GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
+
+      - name: リアルタイム最新CSVの取得・アップロード
+        run: python update_latest_csv.py
+        env:
+          RIAHOUSE_META_ACCESS_TOKEN: ${{ secrets.RIAHOUSE_META_ACCESS_TOKEN }}
+          RIAHOUSE_META_AD_ACCOUNT_ID: ${{ secrets.RIAHOUSE_META_AD_ACCOUNT_ID }}
+          RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
