@@ -2,7 +2,7 @@ name: メタ広告を取得しGoogle Driveへ保存
 
 on:
   schedule:
-    - cron: '0 15 * * *'  # JST 00:00（前日分バックアップ）
+    - cron: '0 15 * * *'  # JST 00:00（UTC 15:00）
   workflow_dispatch:
 
 jobs:
@@ -10,30 +10,27 @@ jobs:
     runs-on: ubuntu-latest
     env:
       CLIENT: RIAHOUSE
+
     steps:
       - uses: actions/checkout@v3
 
-      - name: 🐍 Pythonセットアップ
+      - name: Pythonセットアップ
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
 
-      - name: 🔧 ライブラリインストール
+      - name: ライブラリインストール
         run: |
           pip install requests google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
 
-      - name: 🔐 Google認証情報のデコード
+      - name: Google認証情報デコード
         run: echo "$GDRIVE_CREDENTIALS_JSON" | base64 --decode > credentials.json
         env:
           GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
 
-      - name: 📁 前日分バックアップファイルを作成
+      - name: 広告データ取得とバックアップ作成
         run: python upload_daily_backup.py
         env:
           RIAHOUSE_META_ACCESS_TOKEN: ${{ secrets.RIAHOUSE_META_ACCESS_TOKEN }}
           RIAHOUSE_META_AD_ACCOUNT_ID: ${{ secrets.RIAHOUSE_META_AD_ACCOUNT_ID }}
-
-      - name: ☁️ Google Driveにアップロード（前日分）
-        run: python upload_to_drive.py
-        env:
           RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
