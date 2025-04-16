@@ -1,8 +1,8 @@
-name: Meta広告最新CSVのリアルタイム更新
+name: メタ広告のリアルタイムCSV更新
 
 on:
   schedule:
-    - cron: '0 * * * *'  # 毎時0分に実行
+    - cron: '0 * * * *'  # 毎時0分に実行（1時間おき）
   workflow_dispatch:
 
 jobs:
@@ -28,7 +28,7 @@ jobs:
         env:
           GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
 
-      - name: リアルタイム最新CSVの取得・アップロード
+      - name: 最新広告データ取得とアップロード
         run: python update_latest_csv.py
         env:
           RIAHOUSE_META_ACCESS_TOKEN: ${{ secrets.RIAHOUSE_META_ACCESS_TOKEN }}
