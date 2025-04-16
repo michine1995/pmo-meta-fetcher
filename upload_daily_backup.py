@@ -71,8 +71,7 @@ with open(filename_with_date, "w", newline="") as csvfile:
             conversions
         ])
 
-# バックアップ用に固定ファイル名としてコピー
+# 固定名CSVコピーとバックアップ
 shutil.copyfile(filename_with_date, filename_fixed)
-
 print(f"✅ CSV生成完了：{filename_with_date}")
 print(f"✅ Driveアップロード用コピー：{filename_fixed}")
