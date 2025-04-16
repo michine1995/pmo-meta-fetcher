@@ -1,93 +1,97 @@
-import os
 import requests
 import csv
-from datetime import datetime
+import datetime
+import os
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
-# === 環境変数の読み込み ===
-ACCESS_TOKEN = os.getenv('RIAHOUSE_META_ACCESS_TOKEN')
-AD_ACCOUNT_ID = os.getenv('RIAHOUSE_META_AD_ACCOUNT_ID')
-FOLDER_ID = os.getenv('RIAHOUSE_META_FOLDER_ID')
-CSV_PATH = 'meta_csv/latest.csv'
+# 当日日付
+today = datetime.datetime.utcnow().date()
+date_str = today.strftime("%Y-%m-%d")
 
-# === Meta広告データ取得 ===
-def fetch_meta_ads_data():
-    headers = {
-        "Authorization": f"Bearer {ACCESS_TOKEN}"
-    }
-    fields = "campaign_name,ad_name,impressions,clicks,spend"
-    date_preset = "today"
+CLIENT = "RIAHOUSE"
+ACCESS_TOKEN = os.environ.get(f"{CLIENT}_META_ACCESS_TOKEN")
+AD_ACCOUNT_ID = os.environ.get(f"{CLIENT}_META_AD_ACCOUNT_ID")
+FOLDER_ID = os.environ.get(f"{CLIENT}_META_FOLDER_ID")
 
-    url = f"https://graph.facebook.com/v19.0/act_{AD_ACCOUNT_ID}/insights"
-    params = {
-        "fields": fields,
-        "date_preset": date_preset,
-        "level": "ad",
-        "limit": 1000
-    }
+if not ACCESS_TOKEN or not AD_ACCOUNT_ID or not FOLDER_ID:
+    raise KeyError("❌ 環境変数が不足しています")
 
-    response = requests.get(url, headers=headers, params=params)
-    response.raise_for_status()
-    return response.json().get("data", [])
+# 出力フォルダとファイル名
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(SCRIPT_DIR, "meta_csv")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# === CSV書き出し ===
-def write_to_csv(data):
-    os.makedirs("meta_csv", exist_ok=True)
-    with open(CSV_PATH, mode='w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(["campaign_name", "ad_name", "impressions", "clicks", "spend"])
-        for row in data:
-            writer.writerow([
-                row.get("campaign_name", ""),
-                row.get("ad_name", ""),
-                row.get("impressions", ""),
-                row.get("clicks", ""),
-                row.get("spend", "")
-            ])
+filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")
 
-# === Google Driveへアップロード ===
-def upload_to_drive():
-    SCOPES = ['https://www.googleapis.com/auth/drive']
-    credentials = service_account.Credentials.from_service_account_file(
-        'credentials.json', scopes=SCOPES)
-    service = build('drive', 'v3', credentials=credentials)
+# Meta APIから今日のデータを取得
+url = f"https://graph.facebook.com/v19.0/{AD_ACCOUNT_ID}/insights"
+params = {
+    "access_token": ACCESS_TOKEN,
+    "level": "campaign",
+    "fields": "campaign_name,spend,impressions,clicks,cpm,actions",
+    "date_preset": "today"
+}
 
-    # 既存ファイルの検索
-    results = service.files().list(
-        q=f"'{FOLDER_ID}' in parents and name='latest.csv' and trashed=false",
-        spaces='drive',
-        fields='files(id, name)').execute()
-    items = results.get('files', [])
+res = requests.get(url, params=params)
+data = res.json()
 
-    media = MediaFileUpload(CSV_PATH, mimetype='text/csv', resumable=True)
+if "error" in data:
+    print("❌ Meta API error:", data["error"])
+    exit(1)
+
+# CSV書き出し（今日の分）
+with open(filename_fixed, "w", newline="") as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(["date", "campaign", "cost", "CPM", "CTR", "CPC", "impressions", "link_clicks", "conversions"])
+
+    for entry in data.get("data", []):
+        actions = entry.get("actions", [])
+        conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
+        link_clicks = next((int(a["value"]) for a in actions if a["action_type"] == "link_click"), 0)
+        spend = float(entry.get("spend", 0))
+        impressions = int(entry.get("impressions", 0))
+        ctr = round((link_clicks / impressions * 100), 2) if impressions else 0
+        cpc = round((spend / link_clicks), 2) if link_clicks else 0
+
+        writer.writerow([
+            date_str,
+            entry.get("campaign_name", "N/A"),
+            spend,
+            entry.get("cpm", "0"),
+            ctr,
+            cpc,
+            impressions,
+            link_clicks,
+            conversions
+        ])
+
+# Google Driveへアップロード（固定名）
+def upload_to_drive(filepath):
+    creds = service_account.Credentials.from_service_account_file(
+        "credentials.json",
+        scopes=["https://www.googleapis.com/auth/drive"]
+    )
+    service = build("drive", "v3", credentials=creds)
+
+    media = MediaFileUpload(filepath, mimetype="text/csv")
+
+    # すでにファイルがある場合は更新
+    query = f"name = '{os.path.basename(filepath)}' and '{FOLDER_ID}' in parents and trashed = false"
+    results = service.files().list(q=query, spaces="drive", fields="files(id)").execute()
+    items = results.get("files", [])
 
     if items:
-        file_id = items[0]['id']
+        file_id = items[0]["id"]
         service.files().update(fileId=file_id, media_body=media).execute()
-        print(f"✔ 既存の latest.csv を更新しました (fileId: {file_id})")
+        print(f"✅ Updated existing file: {file_id}")
     else:
         file_metadata = {
-            'name': 'latest.csv',
-            'parents': [FOLDER_ID]
+            "name": os.path.basename(filepath),
+            "parents": [FOLDER_ID]
         }
-        service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-        print("✔ 新規に latest.csv をアップロードしました")
+        created_file = service.files().create(body=file_metadata, media_body=media, fields="id").execute()
+        print(f"✅ Uploaded new file: {created_file.get('id')}")
 
-# === メイン処理 ===
-def main():
-    print("▶ Meta広告データを取得中...")
-    data = fetch_meta_ads_data()
-    print(f"✔ {len(data)} 件のデータを取得")
-
-    print("▶ CSVとして保存中...")
-    write_to_csv(data)
-    print(f"✔ {CSV_PATH} に保存完了")
-
-    print("▶ Google Driveにアップロード中...")
-    upload_to_drive()
-    print("✔ アップロード完了")
-
-if __name__ == "__main__":
-    main()
+upload_to_drive(filename_fixed)
