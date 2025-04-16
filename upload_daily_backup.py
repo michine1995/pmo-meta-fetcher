@@ -1,109 +1,91 @@
-# upload_daily_backup.py
-import shutil
+import requests
+import csv
 import datetime
 import os
-
-# 今日の日付
-# 前日を取得（UTC基準で処理）
-today = datetime.date.today()
-yesterday = today - datetime.timedelta(days=1)
-yesterday_str = yesterday.isoformat()
-
-# ファイルパス
-CLIENT = "RIAHOUSE"
-base_name = f"{CLIENT.lower()}_meta_report.csv"
-
-original_file = os.path.join("meta_csv", base_name)
-backup_file = os.path.join("meta_csv", f"{CLIENT.lower()}_meta_report_{yesterday_str}.csv")
-
-# コピー実行
-shutil.copyfile(original_file, backup_file)
-print(f"✅ バックアップコピー作成：{backup_file}")
-
-# upload_to_drive.py
+import shutil
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
-import os
-import datetime
 
-CLIENT = "riahouse"
-yesterday = datetime.date.today() - datetime.timedelta(days=1)
-CSV_FILE_PATH = f"meta_csv/{CLIENT}_meta_report_{yesterday.isoformat()}.csv"
-FOLDER_ID = os.environ.get(f"{CLIENT.upper()}_META_FOLDER_ID")
+# 前日の日付を取得（UTC基準）
+yesterday = datetime.datetime.utcnow() - datetime.timedelta(days=1)
+date_str = yesterday.strftime("%Y-%m-%d")
 
-if not FOLDER_ID:
-    raise KeyError(f"❌ 環境変数が不足しています: '{CLIENT.upper()}_META_FOLDER_ID'")
+CLIENT = "RIAHOUSE"
+ACCESS_TOKEN = os.environ.get(f"{CLIENT}_META_ACCESS_TOKEN")
+AD_ACCOUNT_ID = os.environ.get(f"{CLIENT}_META_AD_ACCOUNT_ID")
+FOLDER_ID = os.environ.get(f"{CLIENT}_META_FOLDER_ID")
 
-def upload_to_drive():
+if not ACCESS_TOKEN or not AD_ACCOUNT_ID or not FOLDER_ID:
+    raise KeyError("❌ 環境変数が不足しています")
+
+# 出力フォルダ
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+OUTPUT_DIR = os.path.join(SCRIPT_DIR, "meta_csv")
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# ファイル名
+filename_with_date = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report_{date_str}.csv")
+filename_fixed = os.path.join(OUTPUT_DIR, f"{CLIENT.lower()}_meta_report.csv")
+
+# Meta API取得
+url = f"https://graph.facebook.com/v19.0/{AD_ACCOUNT_ID}/insights"
+params = {
+    "access_token": ACCESS_TOKEN,
+    "level": "campaign",
+    "fields": "campaign_name,spend,impressions,clicks,cpm,actions",
+    "time_range": f'{{"since":"{date_str}","until":"{date_str}"}}'
+}
+res = requests.get(url, params=params)
+data = res.json()
+
+if "error" in data:
+    print("❌ Meta API error:", data["error"])
+    exit(1)
+
+# CSV書き出し
+with open(filename_with_date, "w", newline="") as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(["date", "campaign", "cost", "CPM", "CTR", "CPC", "impressions", "link_clicks", "conversions"])
+
+    for entry in data.get("data", []):
+        actions = entry.get("actions", [])
+        conversions = sum(int(a["value"]) for a in actions if "conversion" in a["action_type"])
+        link_clicks = next((int(a["value"]) for a in actions if a["action_type"] == "link_click"), 0)
+        spend = float(entry.get("spend", 0))
+        impressions = int(entry.get("impressions", 0))
+        ctr = round((link_clicks / impressions * 100), 2) if impressions else 0
+        cpc = round((spend / link_clicks), 2) if link_clicks else 0
+
+        writer.writerow([
+            date_str,
+            entry.get("campaign_name", "N/A"),
+            spend,
+            entry.get("cpm", "0"),
+            ctr,
+            cpc,
+            impressions,
+            link_clicks,
+            conversions
+        ])
+
+# 最新ファイル（固定名）としてコピー
+shutil.copyfile(filename_with_date, filename_fixed)
+
+# Google Drive アップロード
+def upload_to_drive(filepath):
     creds = service_account.Credentials.from_service_account_file(
         "credentials.json",
         scopes=["https://www.googleapis.com/auth/drive"]
     )
     service = build("drive", "v3", credentials=creds)
 
-    media = MediaFileUpload(CSV_FILE_PATH, mimetype="text/csv")
+    media = MediaFileUpload(filepath, mimetype="text/csv")
+    file_metadata = {
+        "name": os.path.basename(filepath),
+        "parents": [FOLDER_ID]
+    }
+    service.files().create(body=file_metadata, media_body=media, fields="id").execute()
+    print(f"✅ アップロード成功：{filepath}")
 
-    query = f"name = '{os.path.basename(CSV_FILE_PATH)}' and '{FOLDER_ID}' in parents and trashed = false"
-    results = service.files().list(q=query, spaces="drive", fields="files(id)").execute()
-    items = results.get("files", [])
-
-    if items:
-        file_id = items[0]["id"]
-        service.files().update(fileId=file_id, media_body=media).execute()
-        print(f"✅ Updated existing file: {file_id}")
-    else:
-        file_metadata = {
-            "name": os.path.basename(CSV_FILE_PATH),
-            "parents": [FOLDER_ID]
-        }
-        created_file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields="id"
-        ).execute()
-        print(f"✅ Uploaded new file: {created_file.get('id')}")
-
-if __name__ == "__main__":
-    upload_to_drive()
-
-# .github/workflows/meta_ads_to_drive.yml
-name: メタ広告を取得しGoogle Driveへ保存
-
-on:
-  schedule:
-    - cron: '0 15 * * *'  # JST 00:00（前日分バックアップ）
-  workflow_dispatch:
-
-jobs:
-  run-meta:
-    runs-on: ubuntu-latest
-    env:
-      CLIENT: RIAHOUSE
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: 🐍 Pythonセットアップ
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: 🔧 ライブラリインストール
-        run: |
-          pip install requests google-api-python-client google-auth google-auth-httplib2 google-auth-oauthlib
-
-      - name: 🔐 Google認証情報のデコード
-        run: echo "$GDRIVE_CREDENTIALS_JSON" | base64 --decode > credentials.json
-        env:
-          GDRIVE_CREDENTIALS_JSON: ${{ secrets.GDRIVE_CREDENTIALS_JSON }}
-
-      - name: 📁 前日分バックアップファイルを作成
-        run: python upload_daily_backup.py
-        env:
-          RIAHOUSE_META_ACCESS_TOKEN: ${{ secrets.RIAHOUSE_META_ACCESS_TOKEN }}
-          RIAHOUSE_META_AD_ACCOUNT_ID: ${{ secrets.RIAHOUSE_META_AD_ACCOUNT_ID }}
-
-      - name: ☁️ Google Driveにアップロード（前日分）
-        run: python upload_to_drive.py
-        env:
-          RIAHOUSE_META_FOLDER_ID: ${{ secrets.RIAHOUSE_META_FOLDER_ID }}
+upload_to_drive(filename_with_date)
